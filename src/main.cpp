@@ -35,11 +35,11 @@ int main()
   PID pid;
   // TODO: Initialize the pid variable.
   
-  std::vector<double> p = {0, 0, 0};//(3, 0.0);
-  std::vector<double> dp = {1, 10, 0.001};
+  std::vector<double> p = {0.2, 0.0029, 3.0};//(3, 0.0);
+  std::vector<double> dp = {0.01, 0.0001, 0.1};
   std::vector<bool> p_tune_attempt(3, false);
   std::vector<bool> p_tune_attempt2(3, false);
-  double tolerance = 0.000000001;
+  double tolerance = 0.003;
 
   pid.Init(p[0], p[1], p[2]);
 
@@ -48,7 +48,10 @@ int main()
 
   int tune_idx = 0;
 
-  h.onMessage([&pid, &p, &dp, &p_tune_attempt, &p_tune_attempt2, &tune_idx, &tolerance, &best_err](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  int n = 1;
+  double err = 0;
+
+  h.onMessage([&pid, &p, &dp, &p_tune_attempt, &p_tune_attempt2, &tune_idx, &tolerance, &err, &best_err, &n](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -67,7 +70,7 @@ int main()
 
           std::cout << "sum_dp = " << sum_dp << std::endl;
 
-          bool tune = sum_dp > tolerance;
+          bool tune = false; // sum_dp > tolerance;
 
           // j[1] is the data JSON object
           double cte = std::stod(j[1]["cte"].get<std::string>());
@@ -84,7 +87,12 @@ int main()
 
           double totalError = 0.0;
 
-          double err = cte*cte;
+          err += cte*cte;
+          double error = err/n;
+          ++n;
+
+          std::cout << "err = " << err << std::endl;
+          std::cout << "error = " << error << std::endl;
 
           if (tune) {
             auto i = tune_idx%dp.size();
@@ -93,8 +101,8 @@ int main()
             std::cout << "tune_idx = " << tune_idx << std::endl;
             
             if (p_tune_attempt[i]) {
-              if (err < best_err) {
-                best_err = err;
+              if (error < best_err) {
+                best_err = error;
                 dp[i] *= 1.1;
                 ++tune_idx;
               }
@@ -109,8 +117,8 @@ int main()
               p_tune_attempt[i] = false;
             }
             else if (p_tune_attempt2[i]) {
-              if (err < best_err) {
-                best_err = err;
+              if (error < best_err) {
+                best_err = error;
                 dp[i] *= 1.1;
                 
               } 
@@ -132,7 +140,7 @@ int main()
               p_tune_attempt[i] = true;
 
               if (best_err == INFINITY) {
-                best_err = err;
+                best_err = error;
               }
             }
 
@@ -154,9 +162,10 @@ int main()
 
           steer_value = -totalError;
 
-          /*if (fabs(steer_value) > 1.0) {
+          // trim the steer value to appear between [-1, 1]
+          if (fabs(steer_value) > 1.0) {
             steer_value = steer_value < 0.0 ? -1 : 1;
-          }*/
+          }
           
           // DEBUG
           std::cout << "CTE: " << cte << " Steering Value: " << steer_value << std::endl;
