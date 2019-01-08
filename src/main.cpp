@@ -35,7 +35,7 @@ int main()
   PID pid;
   // TODO: Initialize the pid variable.
   
-  std::vector<double> p = {0.2, 0.0029, 3.0};//(3, 0.0);
+  std::vector<double> p = {0.2, 0.0029, 3.0};
   std::vector<double> dp = {0.01, 0.0001, 0.1};
   std::vector<bool> p_tune_attempt(3, false);
   std::vector<bool> p_tune_attempt2(3, false);
